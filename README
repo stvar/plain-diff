@@ -213,7 +213,7 @@ they forbid 'pdiff' from generating anything on stdout, thus resulting that
   pdiff: error: test/json-type.pdiff:26: \
   invalid file hash: source file 'lib/json-type.c' not found
 
-The plain diff file 'test/json-type.pdiff' has on line 9 a file hash entry:
+The plain diff file 'test/json-type.pdiff' has on line 26 a file hash entry:
 
   $ sed -n 26p test/json-type.pdiff
   ### lib/json-type.c:b15e0661bf664f99cbfe8156916921d1df074b12
@@ -241,7 +241,7 @@ to 'pdiff' --, yet the input still be unacceptable for the program:
   source file 'lib/json-type.c': \
   diff text not matching source text
 
-This error message tells that the 12th plain diff text line is not the same --
+This error message tells that the 29th plain diff text line is not the same --
 as it should be -- with the corresponding source text line:
 
   $ sed -n 28,29p test/json-type.pdiff
