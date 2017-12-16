@@ -1,0 +1,244 @@
+/// Copyright (C) 2017  Stefan Vargyas
+/// 
+/// This file is part of Plain-Diff.
+/// 
+/// Plain-Diff is free software: you can redistribute it and/or modify
+/// it under the terms of the GNU General Public License as published by
+/// the Free Software Foundation, either version 3 of the License, or
+/// (at your option) any later version.
+/// 
+/// Plain-Diff is distributed in the hope that it will be useful,
+/// but WITHOUT ANY WARRANTY; without even the implied warranty of
+/// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/// GNU General Public License for more details.
+/// 
+/// You should have received a copy of the GNU General Public License
+/// along with Plain-Diff.  If not, see <http://www.gnu.org/licenses/>.
+
+///
+/// $ date
+/// Fri Dec 15 10:45:49 EET 2017
+///
+/// $ git log -1 --pretty=oneline
+/// a64f983a5fb892951bf0eaa39e7fa2e57c59f31a NEWS: new file.
+///
+
+### lib/json-type.c:b15e0661bf664f99cbfe8156916921d1df074b12
+
+>>> lib/json-type.c:1400
+        v = node->args[0].val;
+        if ((s = JSON_AST_NODE_AS_IF_CONST(v, string)) == NULL ||
+            !json_type_ruler_lookup_obj_type(s->buf.ptr, &t))
+<<<
+        v = node->args[0].val;
+        if (!(s = JSON_AST_NODE_AS_IF_CONST(v, string)) ||
+            !json_type_ruler_lookup_obj_type(s->buf.ptr, &t))
+>>>
+
+>>> lib/json-type.c:1518
+        w = node->args[0].val;
+        // meta-rule (1) and (9.a)
+        if (w->type != json_ast_string_node_type)
+            return JSON_TYPE_RULER_ERROR_POS(
+                w->pos, invalid_name_obj_name_not_str);
+
+        v = node->args[1].val;
+        r = json_type_ruler_visit(ruler, v);
+
+        JSON_TYPE_RULER_RESULT_PRINT_DEBUG(r);
+
+        if (JSON_TYPE_RULER_RESULT_IS_ERROR(r))
+            return r;
+
+        // meta-rule (1)
+        if (!JSON_TYPE_RULER_RESULT_VAL_IS_TYPE(r))
+            return JSON_TYPE_RULER_ERROR_POS(
+                r.pos, invalid_name_obj_type_arg_not_a_type);
+
+        s = JSON_AST_NODE_AS_CONST(w, string);
+        return JSON_TYPE_RULER_VAL_NAME_OBJ(w->pos, s->buf.ptr);
+<<<
+        w = node->args[0].val;
+        // meta-rule (1) and (9.a)
+        if (!(s = JSON_AST_NODE_AS_IF_CONST(w, string)))
+            return JSON_TYPE_RULER_ERROR_POS(
+                w->pos, invalid_name_obj_name_not_str);
+
+        v = node->args[1].val;
+        r = json_type_ruler_visit(ruler, v);
+
+        JSON_TYPE_RULER_RESULT_PRINT_DEBUG(r);
+
+        if (JSON_TYPE_RULER_RESULT_IS_ERROR(r))
+            return r;
+
+        // meta-rule (1)
+        if (!JSON_TYPE_RULER_RESULT_VAL_IS_TYPE(r))
+            return JSON_TYPE_RULER_ERROR_POS(
+                r.pos, invalid_name_obj_type_arg_not_a_type);
+
+        return JSON_TYPE_RULER_VAL_NAME_OBJ(w->pos, s->buf.ptr);
+>>>
+
+/// stev: instead of prepending each call of JSON_TYPE_PTR_SPACE_INSERT
+/// (when it is defined as JSON_TYPE_PTR_SPACE_VALIDATE_INSERT_) with
+/// ASSERT(... != NULL), redefine the latter macro to check for its arg
+/// not being NULL!
+
+/// $ grep lib/json-type.c -Pne '\bJSON_TYPE_PTR_SPACE_INSERT\(|#\s*define\s*JSON_TYPE_PTR_SPACE_INSERT\b' -B4 -A1|less
+
+>>> lib/json-type.c:3122
+#define JSON_TYPE_PTR_SPACE_VALIDATE_INSERT_(p)        \
+    do {                                               \
+        struct json_type_ptr_treap_node_t* __r = NULL; \
+        bool __b = json_type_ptr_treap_insert_key(     \
+            &space->map, p, &__r);                     \
+        ASSERT(__r != NULL);                           \
+        if (!__b) {                                    \
+            *result = (p);                             \
+            return false;                              \
+        }                                              \
+        __r->val = space->index ++;                    \
+    } while (0)
+<<<
+#define JSON_TYPE_PTR_SPACE_VALIDATE_INSERT_(p)        \
+    do {                                               \
+        struct json_type_ptr_treap_node_t* __r = NULL; \
+        bool __b = json_type_ptr_treap_insert_key(     \
+            &space->map, ({ ASSERT(p); (p); }), &__r); \
+        ASSERT(__r != NULL);                           \
+        if (!__b) {                                    \
+            *result = (p);                             \
+            return false;                              \
+        }                                              \
+        __r->val = space->index ++;                    \
+    } while (0)
+>>>
+
+/// stev: note that inserting 'if (... != NULL) { *result = &...; return false; }'
+/// is strictly required; the missing 'if's are most likely due to the dance of
+/// JSON_TYPE_PTR_SPACE_INSERT being defined as JSON_TYPE_PTR_SPACE_VALIDATE_INSERT
+/// and as JSON_TYPE_PTR_SPACE_GEN_DEF_INSERT_ alternately.
+
+>>> lib/json-type.c:3273
+        if (!json_type_list_attr_validate(
+                node->attr.list,
+                space, result))
+            return false;
+<<<
+        if (node->attr.list == NULL) {
+            *result = &node->attr.list;
+            return false;
+        }
+
+        if (!json_type_list_attr_validate(
+                node->attr.list,
+                space, result))
+            return false;
+>>>
+
+>>> lib/json-type.c:3301
+        if (!json_type_dict_attr_validate(
+                node->attr.dict,
+                space, result))
+            return false;
+<<<
+        if (node->attr.dict == NULL) {
+            *result = &node->attr.dict;
+            return false;
+        }
+
+        if (!json_type_dict_attr_validate(
+                node->attr.dict,
+                space, result))
+            return false;
+>>>
+
+/// stev: why not JSON_TYPE_PTR_SPACE_GEN_DEF_INSERT_ asserting its arg not
+/// being NULL???
+
+>>> lib/json-type.c:3556
+#define JSON_TYPE_PTR_SPACE_GEN_DEF_INSERT_(p)         \
+    ({                                                 \
+        struct json_type_ptr_treap_node_t* __r = NULL; \
+        bool __b = json_type_ptr_treap_insert_key(     \
+            &space->map, p, &__r);                     \
+        ASSERT(__b);                                   \
+        ASSERT(__r);                                   \
+        __r->val = space->index ++;                    \
+        __r;                                           \
+    })
+<<<
+#define JSON_TYPE_PTR_SPACE_GEN_DEF_INSERT_(p)         \
+    ({                                                 \
+        struct json_type_ptr_treap_node_t* __r = NULL; \
+        bool __b = json_type_ptr_treap_insert_key(     \
+            &space->map, ({ ASSERT(p); (p); }), &__r); \
+        ASSERT(__b);                                   \
+        ASSERT(__r);                                   \
+        __r->val = space->index ++;                    \
+        __r;                                           \
+    })
+>>>
+
+>>> lib/json-type.c:5344
+static bool json_type_list_attr_validate(
+    const struct json_type_list_attr_t* list,
+    struct json_type_ptr_space_t* space,
+    const void** result)
+{
+    JSON_TYPE_PTR_SPACE_INSERT(list);
+<<<
+static bool json_type_list_attr_validate(
+    const struct json_type_list_attr_t* list,
+    struct json_type_ptr_space_t* space,
+    const void** result)
+{
+    ASSERT(list != NULL);
+
+    JSON_TYPE_PTR_SPACE_INSERT(list);
+>>>
+
+>>> lib/json-type.c:5569
+static bool json_type_dict_attr_validate(
+    const struct json_type_dict_attr_t* dict,
+    struct json_type_ptr_space_t* space,
+    const void** result)
+{
+    JSON_TYPE_PTR_SPACE_INSERT(dict);
+<<<
+static bool json_type_dict_attr_validate(
+    const struct json_type_dict_attr_t* dict,
+    struct json_type_ptr_space_t* space,
+    const void** result)
+{
+    ASSERT(dict != NULL);
+
+    JSON_TYPE_PTR_SPACE_INSERT(dict);
+>>>
+
+>>> lib/json-type.c:7250
+    case json_type_lib_error_sys:
+        fputs("system error: ", file);
+        if (info->sys.error)
+            fprintf(file, "%s: %s",
+                json_type_lib_error_sys_context_get_desc(
+                    info->sys.context),
+                strerror(info->sys.error));
+        else
+            fprintf(file, "%s",
+                json_type_lib_error_sys_context_get_desc(
+                    info->sys.context));
+        break;
+<<<
+    case json_type_lib_error_sys:
+        fputs("system error: ", file);
+        ASSERT(info->sys.error);
+        fprintf(file, "%s: %s",
+            json_type_lib_error_sys_context_get_desc(
+                info->sys.context),
+            strerror(info->sys.error));
+        break;
+>>>
+
+

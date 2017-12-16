@@ -1,0 +1,365 @@
+
+                                   Plain-Diff
+                                   ~~~~~~~~~~
+                        Stefan Vargyas, stvar@yahoo.com
+
+                                  Dec 12, 2017
+
+
+Table of Contents
+-----------------
+
+0. Copyright
+1. The Plain-Diff Program
+2. The Plain-Diff File Format
+3. Use Cases of Plain-Diff
+   a. Obtain brief help information from 'pdiff'
+   b. Verify the correctness of given plain diff text
+   c. Generate an unified diff from given plain diff text
+4. References
+
+
+0. Copyright
+============
+
+This program is GPL-licensed free software. Its author is Stefan Vargyas. You
+can redistribute it and/or modify it under the terms of the GNU General Public
+License as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+You should have received a copy of the GNU General Public License along with
+this program (look up for the file COPYING in the top directory of the source
+tree). If not, see http://gnu.org/licenses/gpl.html.
+
+
+1. The Plain-Diff Program
+=========================
+
+Plain-Diff's main vocation is that of an easy to use tool for consuming plain
+diff text files and producing from them unified diff files suitable as input
+for the 'patch' program [1].
+
+The plain diff file format was designed such that to very easily be writable
+by hand out of source text files. Writing by hand plain diff files, one is
+alleviating the tedious activity of developing manually unified diff files.
+
+An obvious question arise: why would someone choose to write plain diff files
+instead of producing patch files out of source file trees? (For example, by
+using the 'diff' program [2] or 'git's [3] own diffing functionality.)
+
+One possible answer to this question is as follows: during a session of code
+coverage analysis (when the source tree is closed to changes), while one is
+reviewing intensively the source code itself, it comes naturally the need for
+refactoring locally some implementations. If one does not want to work back
+and forth with two distinct source trees, then he may choose to note down all
+refactoring changes in a plain diff text file.
+
+Upon completing the code coverage analysis session, the plain diff text file
+obtained can be used safely for to patch in the source tree all refactoring
+changes collected along the way.
+
+The Plain-Diff program consists of a single Python 2.6 script 'pdiff.py' --
+which is using only standard Python modules.
+
+
+2. The Plain-Diff File Format
+=============================
+
+By design, the format of the files accepted as input by 'pdiff' is trivially
+simple. Plain diff files are text files that are line oriented, incorporating
+text from source files with almost zero-editing overhead.
+
+The adjective *almost* used above is to be understood literally: that is that
+(of course, modulo my limited knowledge of these things) nearly every piece of
+modern-day written source text code of mainstream programming languages can be
+copied from files containing it and pasted *unchanged* into a plain diff file.
+
+There are only very few exceptions to this nice property of plain diff files:
+when a source line begins with one of the strings "\\" (the string consisting
+of a sole backslash character), "///", "###", "<<<" or ">>>", the associated
+plain diff text line must be escaped, i.e. the source line must be prepended
+with one backslash character ('\\') for to become a plain diff line.
+
+The strings "\\", "///", "###", "<<<" and ">>>" have to be escaped if and only
+if they occur at the beginning of source lines. The plain diff format requires
+these strings to be escaped since each has attached special syntactical meaning.
+
+The strings "///" mark the beginning of comment text lines. Lines starting with
+the string "###" contain hash digests specifications attached to source files.
+The strings "<<<" and ">>>" are diff hunks delimiters.
+
+The complete lexical and syntactical structure of plain diff files is specified
+in the file 'pdiff.g'. Simply put, a plain diff file consists of a series of
+entries of the following four syntactical categories:
+
+  --------------  ------------------------------------------------------------
+   empty_line      single-line containing whitespace characters only
+   comment_line    single-line entry allowed to contain any text
+   file_hash       single-line entry associating hash digests to source files
+   diff_hunk       multi-line entry defining an insert, a delete or a replace
+                   operation applied to a named source file
+  --------------  ------------------------------------------------------------
+
+The 'file_hash' lines look like the following one (its meaning is self-evident):
+
+  $ sed -n 26p test/json-type.pdiff
+  ### lib/json-type.c:b15e0661bf664f99cbfe8156916921d1df074b12
+
+The file 'test/json-type.pdiff' contains only replace hunks, of which the first
+one looks as shown (again, its meaning is self-evident):
+
+  $ sed -n 28,36p test/json-type.pdiff
+  >>> lib/json-type.c:1400
+          v = node->args[0].val;
+          if ((s = JSON_AST_NODE_AS_IF_CONST(v, string)) == NULL ||
+              !json_type_ruler_lookup_obj_type(s->buf.ptr, &t))
+  <<<
+          v = node->args[0].val;
+          if (!(s = JSON_AST_NODE_AS_IF_CONST(v, string)) ||
+              !json_type_ruler_lookup_obj_type(s->buf.ptr, &t))
+  >>>
+
+
+3. Use Cases of Plain-Diff
+==========================
+
+Plain-Diff processes an input plain diff text file, either specified by its
+name provided in the invoking command line, or otherwise read in from stdin.
+
+For convenience of use of 'pdiff.py' script, let define the shell function:
+
+  $ export PLAIN_DIFF_HOME=...
+
+  $ pdiff() { python "$PLAIN_DIFF_HOME"/pdiff.py "$@"; }
+
+3.a. Obtain brief help information from 'pdiff'
+-----------------------------------------------
+
+Issuing the following command would produce succinct information about the
+command line options of 'pdiff'. With only a few exceptions, the output of
+'pdiff' is self-explanatory:
+
+  $ pdiff --help
+  ...
+
+A 'pdiff' command line containing only `--dump-opts' shows which are the
+default values for each of the program's options:
+
+  $ pdiff --dump-opts
+  action:       unified
+  input:        <stdin>
+  context:      3
+  directory:    None
+  dry-run:      False
+  no-hash:      False
+  no-text:      False
+  no-adjust:    False
+  no-reorder:   False
+  trace-parser: False
+  verbose:      False
+
+Passing `--dump-opts' along with other options in a more elaborated 'pdiff'
+command line shows the actual values received by each option of the program.
+
+The program's input plain diff text file is specified by name by the command
+line options `-i|--input'. When these options are not given, either take the
+input file name to be the first non-option command line argument or, when no
+such argument is present in the invoking command line, take the file content
+from stdin. Note that the file name `-' has a special meaning: tells 'pdiff'
+to read its input from stdin.
+
+Plain-Diff has three main modes of operation, to each corresponding separate
+action options:
+
+  ---------------------  ------------------------------------------------
+   `-O|--parse-only'      only parse input and verify its correctness
+   `-P|--plain-diff'      produce a normalized plain diff text on stdout
+   `-U|--unified-diff'    produce an unified diff text on stdout
+  ---------------------  ------------------------------------------------
+
+The action options `-P|--plain-diff' generates on stdout a normalized version
+of the input plain diff file given. Normalizing an plain diff text means the
+following:
+
+  * remove all empty lines and comment lines (lines which start with "///");
+  * regroup all file hash entries at the top of the output text, sorted by
+    file name in increasing order;
+  * regroup all diff hunks entries after the file hash entries, sorted by
+    file name and line numbers in increasing order.
+
+3.b. Verify the correctness of given plain diff text
+----------------------------------------------------
+
+Plain-Diff's source tree contains in its 'test' directory a real plain diff
+file -- that is 'test/json-type.pdiff'. This plain diff file is referring to
+Json-Type's [4] source tree -- it was produced out of a certain revision of
+Json-Type, during a code coverage analysis session.
+
+I'll use 'test/json-type.pdiff' below, in the current section and in the next
+one, for illustrating the functionalities of 'pdiff' program. The note attached
+to reference entry [4] presents the procedure of obtaining locally Json-Type's
+source tree revision to which 'test/json-type.pdiff' is referring to.
+
+Let $JSON_TYPE_HOME be set such that to point to the local directory containing
+the cloned Json-Type source tree:
+
+  $ export JSON_TYPE_HOME=...
+
+The command line options `-O|--parse-only' provide an useful functionality:
+they forbid 'pdiff' from generating anything on stdout, thus resulting that
+'pdiff' only parses the input provided and verifies its correctness.
+
+  $ pdiff -O test/json-type.pdiff 
+  pdiff: error: test/json-type.pdiff:26: \
+  invalid file hash: source file 'lib/json-type.c' not found
+
+The plain diff file 'test/json-type.pdiff' has on line 9 a file hash entry:
+
+  $ sed -n 26p test/json-type.pdiff
+  ### lib/json-type.c:b15e0661bf664f99cbfe8156916921d1df074b12
+
+Since the source file 'lib/json-type.c' doesn't exists within the source tree
+of Plain-Diff, 'pdiff' exits reporting this error. But, when passing on to it
+Json-Type's home directory, things work OK:
+
+  $ pdiff -O test/json-type.pdiff -d "$JSON_TYPE_HOME" && echo OK
+  OK
+
+That would not work if Json-Type's source tree contains a modified version of
+'lib/json-type.c':
+
+  $ pdiff -O test/json-type.pdiff -d "$JSON_TYPE_HOME" && echo OK
+  pdiff: error: $PLAIN_DIFF_HOME/test/json-type.pdiff:26: \
+  invalid file hash: SHA1-digest mismatch: \
+  expected 'b15e0661bf664f99cbfe8156916921d1df074b12' but got '...'
+
+One might avoid verifying hash digests -- by passing `--no-hash-check' option
+to 'pdiff' --, yet the input still be unacceptable for the program:
+
+  $ pdiff -O test/json-type.pdiff -d "$JSON_TYPE_HOME" --no-hash-check
+  pdiff: error: $PLAIN_DIFF_HOME/test/json-type.pdiff:29: \
+  source file 'lib/json-type.c': \
+  diff text not matching source text
+
+This error message tells that the 12th plain diff text line is not the same --
+as it should be -- with the corresponding source text line:
+
+  $ sed -n 28,29p test/json-type.pdiff
+  >>> lib/json-type.c:1400
+          v = node->args[0].val;
+
+There is yet more of a possibility: avoid matching text lines in the plain diff
+file with the ones in the corresponding source files:
+
+  $ pdiff -O test/json-type.pdiff --no-hash-check --no-text-check && echo OK
+  OK
+
+If one only wants to verify the textual correctness of his plain diff file --
+thus overruling all checks normally done by 'pdiff' with respect to the source
+files specified in the plain diff file -- `--dry-run' is what he needs using:
+
+  $ pdiff -O test/json-type.pdiff --dry-run && echo OK
+  OK
+
+Syntactically incorrect input makes 'pdiff' complain even if invoked with
+`--dry-run':
+
+  $ sed '28s/>>>//' test/json-type.pdiff|pdiff -O --dry-run
+  pdiff: error: <stdin>:28: non-empty lines not allowed in DIFF context
+
+3.c. Generate an unified diff from given plain diff text
+--------------------------------------------------------
+
+The main use case of 'pdiff' is that of generating unified diff texts having
+a number of context lines specified by its user. This is achieved using the
+command line options `-U|--unified-diff', `-c|--context' and '--adjust-diff'.
+
+Important is to remark that all the command lines `pdiff -O' in the previous
+section that fail with error message, will fail exactly the same way if `-O'
+is replaced with `-U'. This should be a sensible behavior: a prerequisite of
+generating an unified diff text out of a plain diff text is that the latter
+text must be valid in the sense outlined by the previous section.
+
+The command line `--adjust-diff' enforces 'pdiff' to always use source text
+lines read from source files to adjust unified context lines for the number
+of these to be up to the number specified by `-c|--context'. The adjustment
+may not always be possible at the extend specified by `-c|--context' when
+the context lines are near the top lines or, respectively, the bottom lines
+of the source text.
+
+A caveat of using action options `-U|--unified-diff' along with `--dry-run':
+they work OK together, but sometimes the outcome may not be as expected. That
+is because `--dry-run' implies `--no-adjust-diff' -- 'pdiff' does not touch
+source files when given `--dry-run' --, thus some diff hunks of the generated
+unified diff may not have their context lines extended as much as prescribed
+by `-c|--context'.
+
+The unified diff hunk generated from the first plain diff hunk in the file
+'test/json-type.pdiff' looks as follows (see that plain diff hunk listed at
+the end of section 2):
+
+  $ sed -n 28,36p test/json-type.pdiff|pdiff -d "$JSON_TYPE_HOME" -U
+  --- lib/json-type.c
+  +++ lib/json-type.c
+  @@ -1398,7 +1398,7 @@ #1
+       case json_type_ruler_obj_first_key_type:
+           // meta-rule (2)
+           v = node->args[0].val;
+  -        if ((s = JSON_AST_NODE_AS_IF_CONST(v, string)) == NULL ||
+  +        if (!(s = JSON_AST_NODE_AS_IF_CONST(v, string)) ||
+               !json_type_ruler_lookup_obj_type(s->buf.ptr, &t))
+               return JSON_TYPE_RULER_ERROR_POS(
+                   v->pos, invalid_type_obj_type_not_obj_arr_list_dict);
+
+Note that 'pdiff' added four context lines -- two at the top and two at the
+bottom -- of the unified diff hunk above. These four source lines had to be
+read from the source file 'lib/json-type.c' itself, since the originating
+plain diff hunk contains only three lines of source code.
+
+Extending the series of command line samples of previous section, the command
+lines below patch in the source tree of Json-Type according to the plain diff
+file 'test/json-type.pdiff'. The following command line must be issued within
+$PLAIN_DIFF_HOME directory:
+
+  $ pdiff -d "$JSON_TYPE_HOME" -U test/json-type.pdiff|patch -d "$JSON_TYPE_HOME" -p0
+  patching file lib/json-type.c
+
+The next command needs to be invoked within $JSON_TYPE_HOME directory:
+
+  $ pdiff -U "$PLAIN_DIFF_HOME"/test/json-type.pdiff|patch -p0
+  patching file lib/json-type.c
+
+
+4. References
+=============
+
+[1] GNU Patch
+    https://www.gnu.org/software/patch/
+
+[2] GNU Diffutils
+    https://www.gnu.org/software/diffutils/
+
+[3] Git
+    https://git-scm.com/
+
+[4] Json-Type: JSON Push Parsing and Type Checking
+    http://nongnu.org/json-type/
+
+    For to use the plain diff file 'test/json-type.pdiff' on real source files,
+    one needs to do two things. Firstly, clone Json-Type's remote git repo into
+    a local directory of one's choice:
+
+    $ cd ...
+
+    $ git clone git://git.sv.nongnu.org/json-type
+
+    Secondly, checkout the revision needed by 'test/json-type.pdiff':
+
+    $ grep json-type.pdiff -e git -A1
+    /// $ git log -1 --pretty=oneline
+    /// a64f983a5fb892951bf0eaa39e7fa2e57c59f31a NEWS: new file.
+
+    $ git checkout -q a64f983a5f && echo OK
+    OK
+
+
