@@ -165,14 +165,14 @@ class File:
 
     def __lt__(self, file):
         assert isinstance(file, File)
-        return self.name.__lt__(file.name)
+        return self.uid < file.uid
 
     def __gt__(self, file):
         assert isinstance(file, File)
-        return self.name.__gt__(file.name)
+        return self.uid > file.uid
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.uid)
 
     def __str__(self):
         return str(self.name)
