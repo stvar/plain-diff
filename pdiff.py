@@ -325,7 +325,6 @@ class Unified:
             j1 = g[0][3]
             j2 = g[-1][4]
 
-            assert i1 == j1
             assert i2 >= i1
             assert j2 >= j1
 
