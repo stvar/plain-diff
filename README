@@ -550,7 +550,7 @@ also not producing any plain diff text -- prints out all non-matching hunks too:
 
     Secondly, checkout the revision needed by 'test/json-type.pdiff':
 
-    $ grep json-type.pdiff -e git -A1
+    $ grep "$PLAIN_DIFF_HOME"/test/json-type.pdiff -e git -A1
     /// $ git log -1 --pretty=oneline
     /// a64f983a5fb892951bf0eaa39e7fa2e57c59f31a NEWS: new file.
 
