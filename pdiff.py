@@ -484,6 +484,14 @@ class Parser:
         self.files[f] = f
         return f
 
+    def make_lineno(self, lno):
+        r = int(lno)
+        assert r >= 0
+        if r == 0:
+            self.invalid_line(
+                "zero line number")
+        return r
+
     class Rex:
 
         def __init__(self, expr):
@@ -601,8 +609,10 @@ class Parser:
             self.invalid_line()
 
         d = PlainDiff(
-            file = self.new_file(self.DIFF_TARGET[1]),
-            line = int(self.DIFF_TARGET[2]),
+            file = self.new_file(
+                    self.DIFF_TARGET[1]),
+            line = self.make_lineno(
+                    self.DIFF_TARGET[2]),
             pos = self.lno
         )
         self.diffs.append(d)
