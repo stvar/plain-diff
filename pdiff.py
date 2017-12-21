@@ -850,7 +850,8 @@ and the options are:
             cout(help, program)
 
         def version():
-            cout("%s: version %s\n\n%s\n", program, verdate, license)
+            cout("%s: version %s\n\n%s\n",
+                    program, verdate, license)
 
         def dump():
             cout("""\
