@@ -178,8 +178,8 @@ action options:
   ---------------------  ------------------------------------------------
 
 The action options `-P|--plain-diff' generates on stdout a normalized version
-of the input plain diff file given. Normalizing an plain diff text means the
-following:
+of the input plain diff file given. Normalizing a plain diff text means doing
+the following:
 
   * remove all empty lines and comment lines (lines which start with "///");
   * regroup all file hash entries at the top of the output text, sorted by
@@ -272,7 +272,7 @@ Syntactically incorrect input makes 'pdiff' complain even if invoked with
 
 The main use case of 'pdiff' is that of generating unified diff texts having
 a number of context lines specified by its user. This is achieved using the
-command line options `-U|--unified-diff', `-c|--context' and '--adjust-diff'.
+command line options `-U|--unified-diff', `-c|--context' and `--adjust-diff'.
 
 Important is to remark that all the command lines `pdiff -O' in the previous
 section that fail with error message, will fail exactly the same way if `-O'
