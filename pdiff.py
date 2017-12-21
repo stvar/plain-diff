@@ -138,8 +138,9 @@ class File:
         i = 0
         j = start - 1
         n = len(lines)
+        m = len(self.lines)
         while i < n:
-            if lines[i] != self.lines[j]:
+            if j >= m or lines[i] != self.lines[j]:
                 result.add(i + 1)
             i += 1
             j += 1
