@@ -16,6 +16,7 @@ Table of Contents
    a. Obtain brief help information from 'pdiff'
    b. Verify the correctness of given plain diff text
    c. Generate an unified diff from given plain diff text
+   d. Fix up diff hunk addresses of given plain diff text
 4. References
 
 
@@ -156,6 +157,8 @@ default values for each of the program's options:
   no-text:      False
   no-adjust:    False
   no-reorder:   False
+  no-hunk-out:  False
+  interactive:  False
   trace-parser: False
   verbose:      False
 
@@ -172,11 +175,12 @@ to read its input from stdin.
 Plain-Diff has three main modes of operation, to each corresponding separate
 action options:
 
-  ---------------------  ------------------------------------------------
-   `-O|--parse-only'      only parse input and verify its correctness
-   `-P|--plain-diff'      produce a normalized plain diff text on stdout
-   `-U|--unified-diff'    produce an unified diff text on stdout
-  ---------------------  ------------------------------------------------
+  ---------------------    ------------------------------------------------
+   `-O|--parse-only'        only parse input and verify its correctness
+   `-P|--plain-diff'        produce a normalized plain diff text on stdout
+   `-U|--unified-diff'      produce an unified diff text on stdout
+   `-A|--addresses-diff'    produce an addresses diff text on stdout
+  -----------------------  ------------------------------------------------
 
 The action options `-P|--plain-diff' generates on stdout a normalized version
 of the input plain diff file given. Normalizing a plain diff text means doing
@@ -187,6 +191,9 @@ the following:
     file name in increasing order;
   * regroup all diff hunks entries after the file hash entries, sorted by
     file name and line numbers in increasing order.
+
+The remaining actions options -- `-O|--parse-only', `-U|--unified-diff' and
+`-A|--addresses-diff' -- are presented in the next three subsections.
 
 3.b. Verify the correctness of given plain diff text
 ----------------------------------------------------
@@ -329,6 +336,193 @@ The next command needs to be invoked within $JSON_TYPE_HOME directory:
 
   $ pdiff -U "$PLAIN_DIFF_HOME"/test/json-type.pdiff|patch -p0
   patching file lib/json-type.c
+
+3.d. Fix up diff hunk addresses of given plain diff text
+--------------------------------------------------------
+
+This subsection presents one more important use case of 'pdiff': that of action
+option `-A|--addresses-diff'. When one has at hand a plain diff text file which
+refers to source files of which content 'pdiff' finds out to be in disagreement
+with hunk source lines within the given plain diff file, `-A|--addresses-diff'
+may come to help fixing the offending diff file -- for to bring it in sync with
+source file content.
+
+More precisely, when a source files changed such that its line addresses within
+the plain diff became invalid, `-A|--address-diff' can be employed for producing
+a plain diff text which fixes up conveniently the invalidated diff addresses
+within the initiating plain diff file.
+
+To exemplify the situation just described, let's make the valid plain diff file
+'test/json-type.pdiff' be invalid by changing one of its hunk addresses (also
+retaining its original content in the file 'test/json-type.pdiff~'):
+
+  $ sed -i~ '28s/1400/1401/' test/json-type.pdiff
+
+Now, 'pdiff' reacts as expected, rejecting the altered diff file:
+
+  $ pdiff -d "$JSON_TYPE_HOME" -O test/json-type.pdiff
+  pdiff: error: $PLAIN_DIFF_HOME/test/json-type.pdiff:29: \
+  source file 'lib/json-type.c': diff text not matching source text
+
+Nice is that action option `-A|--addresses-diff' is able to handle the broken
+file, finding out and producing a fix for the hunk address edited above:
+
+  $ pdiff -d "$JSON_TYPE_HOME" -A test/json-type.pdiff
+  >>> $PLAIN_DIFF_HOME/test/json-type.pdiff:28
+  \>>> lib/json-type.c:1401
+  <<<
+  \>>> lib/json-type.c:1400
+  >>>
+
+Piping the plain diff text produced by `-A|--addresses-diff' into 'pdiff' once
+more will produce an unified diff ready to be used by 'patch' for bringing the
+broken file 'test/json-type.pdiff' back to its initial valid state:
+
+  $ pdiff -d "$JSON_TYPE_HOME" -A test/json-type.pdiff|pdiff -U
+  --- $PLAIN_DIFF_HOME/test/json-type.pdiff
+  +++ $PLAIN_DIFF_HOME/test/json-type.pdiff
+  @@ -25,7 +25,7 @@ #1
+   
+   ### lib/json-type.c:b15e0661bf664f99cbfe8156916921d1df074b12
+   
+  ->>> lib/json-type.c:1401
+  +>>> lib/json-type.c:1400
+           v = node->args[0].val;
+           if ((s = JSON_AST_NODE_AS_IF_CONST(v, string)) == NULL ||
+               !json_type_ruler_lookup_obj_type(s->buf.ptr, &t))
+
+  $ pdiff -d "$JSON_TYPE_HOME" -A test/json-type.pdiff|pdiff -U|patch -p0
+  patching file $PLAIN_DIFF_HOME/test/json-type.pdiff
+
+  $ diff -q test/json-type.pdiff{~,} && echo OK
+  OK
+
+One careful reader may wonder whether the 'patch' pipeline command above is
+actually correct, since the file 'test/json-type.pdiff' is both read from and
+written into by processes belonging to the same pipe chain. Fact is that there
+is nothing to worry about here because 'pdiff' functions as a "sponge": before
+writing anything out, it reads in the entire content of the input file given.
+
+For the remainder of the current subsection, let's make two text files that'll
+illustrate further the behavior of action option `-A|--addresses-diff':
+
+  $ cd /tmp
+
+  $ cat <<EOF >foo.txt
+  foo
+  bar
+  bar
+  foo
+  baz
+  EOF
+
+  $ cat <<EOF >foo.pdiff
+  >>> foo.txt:5
+  foo
+  <<<
+  faa
+  >>>
+  >>> foo.txt:6
+  bar
+  <<<
+  baz
+  >>>
+  EOF
+
+Now, applying 'pdiff' to 'foo.pdiff' gives an anticipated error message:
+
+  $ pdiff -O foo.pdiff
+  pdiff: error: foo.pdiff:2: source file 'foo.txt': \
+  diff text not matching source text
+
+Action option `-A|--addresses-diff' has yet more of a useful behavior for the
+case of a diff hunk source text occurring multiple times in its target source
+text file. The output line of 'pdiff' below tells that one hunk source text in
+'foo.pdiff' (that consisting of the sole text line 'foo') do appear in several
+places of source file 'foo.txt':
+
+  $ pdiff -A foo.pdiff
+  pdiff: error: foo.pdiff:1: diff hunk source lines occur \
+  multiple times in source text: 1, 4
+
+In case of hunk source texts matching multiple times source text lines, 'pdiff'
+can still generate the needed plain diff output. In such cases, 'pdiff' requires
+the user to decide himself, interactively, for each instance of a multi-matching
+diff hunk, which line addresses to choose:
+
+  $ pdiff -A foo.pdiff --interactive
+  foo.pdiff:1: foo.txt: source lines matching choice [1, 4]: 1
+  >>> foo.pdiff:1
+  \>>> foo.txt:5
+  <<<
+  \>>> foo.txt:1
+  >>>
+  foo.pdiff:6: foo.txt: source lines matching choice [2, 3]: 3
+  >>> foo.pdiff:6
+  \>>> foo.txt:6
+  <<<
+  \>>> foo.txt:3
+  >>>
+
+User interaction is working when 'pdiff' program's output is piped further, for
+to be processed by another program (this is OK, even if the latter program is
+'pdiff' itself):
+
+  $ pdiff -A foo.pdiff --interactive|pdiff -U
+  foo.pdiff:1: foo.txt: source lines matching choice [1, 4]: 1
+  foo.pdiff:6: foo.txt: source lines matching choice [2, 3]: 3
+  --- foo.pdiff
+  +++ foo.pdiff
+  @@ -1,4 +1,4 @@ #1
+  ->>> foo.txt:5
+  +>>> foo.txt:1
+   foo
+   <<<
+   faa
+  @@ -3,7 +3,7 @@ #2
+   <<<
+   faa
+   >>>
+  ->>> foo.txt:6
+  +>>> foo.txt:3
+   bar
+   <<<
+   baz
+
+One pipeline command is sufficient -- as already seen above -- for correcting
+the initially invalid diff file 'foo.pdiff':
+
+  $ pdiff -A foo.pdiff --interactive|pdiff -U|patch -p0
+  foo.pdiff:1: foo.txt: source lines matching choice [1, 4]: 1
+  foo.pdiff:6: foo.txt: source lines matching choice [2, 3]: 3
+  patching file foo.pdiff
+
+  $ pdiff -O foo.pdiff && echo OK
+  OK
+
+By becoming valid, 'foo.pdiff' makes `-A|--addresses-diff' to produce no output:
+
+  $ pdiff -A foo.pdiff
+
+Invoking 'pdiff' with `-A|--addresses-diff' and `--no-hunk-output' on a valid
+plain diff file -- while preventing the program from producing any plain diff
+text -- instructs it to print on stdout all multi-matching hunks contained in
+that given file:
+
+  $ pdiff -A foo.pdiff --no-hunk-output
+  foo.pdiff:1: diff hunk source lines occur multiple times in source text: 1, 4
+  foo.pdiff:6: diff hunk source lines occur multiple times in source text: 2, 3
+
+For an invalid plain diff file, a 'pdiff' command line like the above -- while
+also not producing any plain diff text -- prints out all non-matching hunks too:
+
+  $ sed '2s/foo/doo/' foo.pdiff|pdiff -A --no-hunk-output
+  <stdin>:1: diff hunk source lines not found in source text
+  <stdin>:6: diff hunk source lines occur multiple times in source text: 2, 3
+
+  $ sed '2s/foo/baz/' foo.pdiff|pdiff -A --no-hunk-output
+  <stdin>:1: diff hunk source lines occur somewhere else in source text: 5
+  <stdin>:6: diff hunk source lines occur multiple times in source text: 2, 3
 
 
 4. References
