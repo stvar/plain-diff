@@ -18,7 +18,8 @@
 # along with Plain-Diff.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys, os, re
-import itertools
+
+from itertools import imap
 
 program = 'pdiff'
 verdate = 'v0.1 2017-12-09 23:48' # $ date +'%F %R'
@@ -30,8 +31,7 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law."""
 
 def joinln(args):
-    return "\n".join(
-        itertools.imap(str, args))
+    return "\n".join(imap(str, args))
 
 def write(where, msg, args):
     s = isinstance(msg, str)
