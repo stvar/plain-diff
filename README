@@ -192,7 +192,7 @@ the following:
   * regroup all diff hunks entries after the file hash entries, sorted by
     file name and line numbers in increasing order.
 
-The remaining actions options -- `-O|--parse-only', `-U|--unified-diff' and
+The remaining action options -- `-O|--parse-only', `-U|--unified-diff' and
 `-A|--addresses-diff' -- are presented in the next three subsections.
 
 3.b. Verify the correctness of given plain diff text
