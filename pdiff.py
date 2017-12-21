@@ -19,7 +19,8 @@
 
 import sys, os, re
 
-from itertools import imap
+from types import NoneType
+from itertools import imap, repeat
 
 program = 'pdiff'
 verdate = 'v0.1 2017-12-09 23:48' # $ date +'%F %R'
@@ -64,6 +65,10 @@ def warn(msg, *args):
     if len(args):
         msg = msg % args
     cerr("%s: warning: %s\n", program, msg)
+
+def int_bits():
+    from math import log
+    return int(log(sys.maxint, 2)) + 1
 
 class Hash:
 
@@ -130,22 +135,26 @@ class File:
                 self.name, file.readlines)
         return self.lines is not None
 
-    def same_text(self, lines, start, result):
-        assert isinstance(result, set)
+    def same_text(self, lines, start, result = None):
+        assert isinstance(result, (NoneType, set))
         assert start > 0
-        result.clear()
+        if result is not None:
+            result.clear()
 
+        r = 0
         i = 0
         j = start - 1
         n = len(lines)
         m = len(self.lines)
         while i < n:
             if j >= m or lines[i] != self.lines[j]:
-                result.add(i + 1)
+                if result is not None:
+                    result.add(i + 1)
+                r += 1
             i += 1
             j += 1
 
-        return len(result) == 0
+        return r == 0
 
     def __len__(self):
         return len(self.lines)
@@ -204,15 +213,16 @@ class PlainHash:
 
 class PlainDiff:
 
-    def __init__(self, file, line, pos):
+    def __init__(self, file, line, addr, pos):
         self.file = file
         self.line = line
+        self.addr = addr
         self.pos = pos
         self.source = []
         self.target = []
 
-    def check_text(self, result):
-        assert isinstance(result, set)
+    def check_text(self, result = None):
+        assert isinstance(result, (NoneType, set))
         assert self.file.read_lines()
         return self.file.same_text(
             self.source,
@@ -284,14 +294,24 @@ class Plain:
         for d in self.diffs:
             d.write(where)
 
-class Unified:
+class Gen:
 
     def __init__(self, diffs, opt):
         self.diffs = diffs
+        self.verbose = opt.verbose
+
+    def write(self, where):
+        for d in self.diffs:
+            for l in self.gen(d):
+                where(l)
+
+class Unified(Gen):
+
+    def __init__(self, diffs, opt):
+        Gen.__init__(self, diffs, opt)
         self.context = opt.context
         self.no_adjust = opt.dry_run or \
             opt.no_adjust
-        self.verbose = opt.verbose
         self.current = None
         self.hunkno = None
         if not opt.no_reorder:
@@ -387,19 +407,268 @@ class Unified:
                 i2 + diff.line - 1 + k2):
                 yield ' ' + diff.file[i]
 
-    def write(self, where):
-        for d in self.diffs:
-            for l in self.gen(d):
-                where(l)
+class TTY:
+
+    def __init__(self):
+        fd = os.open("/dev/tty", os.O_RDWR|os.O_NOCTTY)
+        self.tty = os.fdopen(fd, 'w+', 1)
+
+    def write(self, text):
+        self.tty.write(text)
+        self.tty.flush()
+
+    def input(self, prompt):
+        self.write(prompt)
+        try:
+            l = self.tty.readline()
+        except KeyboardInterrupt:
+            self.write("\n")
+            self.close()
+            sys.exit(0)
+        if not l:
+            self.write("^D\n")
+            raise EOFError
+        if l[-1] == '\n':
+            l = l[:-1]
+        return l
+
+    def close(self):
+        try:
+            self.tty.close()
+        except:
+            pass
+
+# Sedgewick & Wayne: Algorithms 4th ed, p. 768
+# Algo. 5.6, Knuth-Morris-Pratt substring search
+
+class KMP:
+
+    class Symbol:
+
+        SIZE = 256
+
+        def __init__(self, seq):
+            self.seq = seq
+
+        def __call__(self, index):
+            return ord(self.seq[index])
+
+        def __getitem__(self, index):
+            return self.seq[index]
+
+        def __len__(self):
+            return len(self.seq)
+
+    def __init__(self, pattern, symbol = Symbol):
+        self.pattern = symbol(pattern)
+        self.symbol = symbol
+
+        r = self.symbol.SIZE
+        m = len(self.pattern)
+        assert m < 256
+
+        from numpy import zeros, uint8
+        self.dfa = zeros(shape = (r, m), dtype = uint8)
+        self.dfa[self.pattern(0)][0] = 1
+
+        x = 0
+        for j in xrange(1, m):
+            for c in xrange(r):
+                self.dfa[c][j] = self.dfa[c][x]
+            self.dfa[self.pattern(j)][j] = j + 1
+            x = self.dfa[self.pattern(j)][x]
+
+    def search_at(self, text, pos):
+        m = len(self.pattern)
+        t = self.symbol(text)
+        n = len(t)
+
+        assert pos >= 0
+        assert pos < n
+        assert m < n
+
+        j = 0
+        i = pos
+        while i < n and j < m:
+            j = self.dfa[t(i)][j]
+            i += 1
+
+        if j == m:
+            # found (hit end of pattern)
+            return i - m
+        else:
+            # not found (hit end of text)
+            return n
+
+    def same_syms(self, text, pos):
+        m = len(self.pattern)
+        n = len(text)
+
+        assert pos >= 0
+        assert pos + m <= n
+        assert m < n
+
+        for i in xrange(m):
+            if self.pattern[i] != text[pos + i]:
+                return False
+        return True
+
+    def search(self, text):
+        m = len(self.pattern)
+        n = len(text)
+        r = []
+
+        i = 0
+        while i < n:
+            j = self.search_at(text, i)
+            assert j <= n
+            assert j >= i
+
+            if j >= n:
+                break
+            if self.same_syms(text, j):
+                r.append(j + 1)
+            i = j + m 
+
+        return r
+
+class Addresses(Gen):
+
+    class Symbol(KMP.Symbol):
+
+        BITS = 9
+        SHIFT = int_bits() - BITS
+        SIZE = 1 << BITS
+
+        def __init__(self, seq):
+            KMP.Symbol.__init__(self, seq)
+            self.hashes = list(repeat(None, len(seq)))
+            assert self.SHIFT > 0
+
+        def __call__(self, index):
+            r = self.hashes[index]
+            if r is None:
+                r = abs(hash(self.seq[index]) >> self.SHIFT)
+                assert r < self.SIZE
+                self.hashes[index] = r
+            return r
+
+    def __init__(self, diffs, opt):
+        Gen.__init__(self, diffs, opt)
+        self.name = opt.input or '<stdin>'
+        self.no_hunk_out = opt.no_hunk_out
+        self.interactive = opt.interactive and \
+            not self.no_hunk_out
+        if self.no_hunk_out:
+            self.error = self.cout
+        self.current = -1
+        self.n_hunks = 0
+
+    def error(self, pos, msg, *args):
+        error("%s:%d: %s", self.name, pos, msg % args)
+
+    def cout(self, pos, msg, *args):
+        cout("%s:%d: %s", self.name, pos, msg % args)
+        cout("\n")
+
+    def interact(self, choices, prompt):
+        c = map(str, choices)
+        p = "%s [%s]: " % (prompt,
+            ", ".join(c))
+        t = TTY()
+        try:
+            while True:
+                try:
+                    r = t.input(p)
+                except EOFError:
+                    continue
+                if r.strip() in c:
+                    return int(r)
+        finally:
+            t.close()
+
+    def gen(self, diff):
+        assert diff.file.read_lines()
+        self.current += 1
+
+        if not self.no_hunk_out and \
+            diff.check_text():
+            return
+
+        m = KMP(
+            pattern = diff.source,
+            symbol = self.Symbol)
+        t = m.search(diff.file)
+        assert isinstance(t, list)
+
+        if self.verbose:
+            cerr("diff-hunk: %2.0f%%\r",
+                100 * float(self.current) /
+                len(self.diffs))
+
+        # stev: interactive => output hunks
+        assert not self.interactive or \
+            not self.no_hunk_out
+
+        n = len(t)
+        if n == 0:
+            self.error(diff.pos,
+                "diff hunk source lines "
+                "not found in source text")
+        elif n == 1 and diff.line == t[0]:
+            assert self.no_hunk_out
+        elif n == 1 and self.no_hunk_out:
+            self.error(diff.pos,
+                "diff hunk source lines occur "
+                "somewhere else in source text: %s",
+                t[0])
+        elif n > 1 and not self.interactive:
+            self.error(diff.pos,
+                "diff hunk source lines occur "
+                "multiple times in source text: %s",
+                ", ".join(map(str, t)))
+        elif n > 1:
+            t = self.interact(t,
+                "%s:%d: %s: source lines "
+                "matching choice" % (
+                self.name,
+                diff.pos,
+                diff.file))
+            assert isinstance(t, int)
+        else:
+            assert not self.no_hunk_out
+            assert n == 1
+            t = t[0]
+
+        if self.no_hunk_out:
+            return
+
+        if not self.interactive and \
+            diff.line != t and \
+            self.n_hunks:
+            yield '\n'
+
+        if diff.line != t:
+            self.n_hunks += 1
+            l = '\\' + diff.addr
+
+            yield '>>> %s:%d\n' % (self.name, diff.pos)
+            yield l % (diff.file, diff.line)
+            yield '<<<\n'
+            yield l % (diff.file, t)
+            yield '>>>\n'
 
 class Parser:
 
     def __init__(self, opt):
         self.input = opt.input
         self.no_hash = opt.dry_run or \
+            opt.action == Act.addresses or \
             opt.no_hash
         self.no_text = opt.dry_run or \
+            opt.action == Act.addresses or \
             opt.no_text
+        self.no_addr = opt.action != Act.addresses
         self.trace = opt.trace_parser
         self.diffs = []
         self.files = {}
@@ -474,7 +743,8 @@ class Parser:
 
     def new_file(self, name):
         d = self.no_hash and \
-            self.no_text
+            self.no_text and \
+            self.no_addr
         f = File(name, d)
         if not d and not f.exists():
             self.source_not_found(name)
@@ -483,6 +753,12 @@ class Parser:
             return g
         self.files[f] = f
         return f
+
+    def make_addr(self, left, middle, right):
+        if not self.no_addr:
+            return left + "%s" + middle + "%d" + right
+        else:
+            return None
 
     def make_lineno(self, lno):
         r = int(lno)
@@ -600,9 +876,9 @@ class Parser:
 
         return self.state
 
-    DIFF_ADDR = Rex('^([^\s:]+)\s*:\s*(\d+)$')
+    DIFF_ADDR = Rex('^([^\s:]+)(\s*:\s*)(\d+)$')
 
-    def parse_diff_address(self, address):
+    def parse_diff_address(self, address, left, right):
         assert self.state == self.DIFF_STATE
 
         if not self.DIFF_ADDR.match(address):
@@ -612,14 +888,16 @@ class Parser:
             file = self.new_file(
                     self.DIFF_ADDR[1]),
             line = self.make_lineno(
-                    self.DIFF_ADDR[2]),
+                    self.DIFF_ADDR[3]),
+            addr = self.make_addr(
+                left, self.DIFF_ADDR[2], right),
             pos = self.lno
         )
         self.diffs.append(d)
 
         return d
 
-    DIFF_RIGHT = Rex('^>>>\s*(.*?)\s*$')
+    DIFF_RIGHT = Rex('^(>>>\s*)(.*?)(\s*)$')
 
     def parse_diff_right(self, line):
         assert self.state != self.NONE_STATE
@@ -627,7 +905,9 @@ class Parser:
 
         if self.state == self.DIFF_STATE:
             d = self.parse_diff_address(
-                self.DIFF_RIGHT[1])
+                self.DIFF_RIGHT[2],
+                self.DIFF_RIGHT[1],
+                self.DIFF_RIGHT[3])
 
             self.text = d.source
             return self.SOURCE_STATE
@@ -635,7 +915,7 @@ class Parser:
         else:
             # self.state == self.SOURCE_STATE or
             # self.state == self.TARGET_STATE
-            if len(self.DIFF_RIGHT[1]):
+            if len(self.DIFF_RIGHT[2]):
                 self.non_wsp_text_after(">>>")
 
             d = self.diffs[-1]
@@ -648,7 +928,7 @@ class Parser:
             self.text = None
             return self.DIFF_STATE
 
-    DIFF_LEFT = Rex('^<<<\s*(.*?)\s*$')
+    DIFF_LEFT = Rex('^(<<<\s*)(.*?)(\s*)$')
 
     def parse_diff_left(self, line):
         assert self.state != self.NONE_STATE
@@ -659,10 +939,12 @@ class Parser:
 
         if self.state == self.DIFF_STATE:
             d = self.parse_diff_address(
-                self.DIFF_LEFT[1])
+                self.DIFF_LEFT[2],
+                self.DIFF_LEFT[1],
+                self.DIFF_LEFT[3])
 
         elif self.state == self.SOURCE_STATE:
-            if len(self.DIFF_LEFT[1]):
+            if len(self.DIFF_LEFT[2]):
                 self.non_wsp_text_after("<<<")
 
             d = self.diffs[-1]
@@ -785,6 +1067,14 @@ class Act:
             opt = opt)
         u.write(cout)
 
+    @staticmethod
+    def addresses(opt):
+        p = Act.parse(opt)
+        a = Addresses(
+            diffs = p.diffs,
+            opt = opt)
+        a.write(cout)
+
 class Options:
 
     def __init__(self):
@@ -797,6 +1087,8 @@ class Options:
         self.no_text = False
         self.no_adjust = False
         self.no_reorder = False
+        self.no_hunk_out = False
+        self.interactive = False
         self.trace_parser = False
         self.verbose = False
         self.parse()
@@ -811,7 +1103,11 @@ where the actions are:
   -O|--parse-only          only parse input -- no output generated
   -P|--plain-diff          generate the normalized plain diff
   -U|--unified-diff        generate an unified diff (default)
-
+  -A|--addresses-diff      generate the addresses diff; note that this
+                             action option always implies using source file
+                             content -- thus making option `--no-text-check'
+                             to have no effect; also note that this action
+                             option implies `--no-hash-check'
 and the options are:
   -c|--context=NUM         output NUM lines of unified context (default: 3)
   -d|--directory=DIR       change the current directory to DIR immediately,
@@ -828,10 +1124,24 @@ and the options are:
                              for source files and use their content when
                              needed; note that `--dry-run' overrides any
                              of the options `--hash-check', `--text-check'
-                             and `--adjust-diff'
+                             and `--adjust-diff'; note that `--[no-]dry-run'
+                             doesn't relate to action `-A|--addresses-diff':
+                             this action always implies using source files
      --[no-]reorder-hunks  reorder diff hunks referring to identical source
                              files by increasing source line numbers -- or
                              otherwise do not (default do)
+     --[no-]hunk-output    modify the normal behavior of the program when
+                             its action is `-A|--addresses-diff': instead
+                             of producing diff hunks, make the program to
+                             list all hunks in the given input file that
+                             do not match the specified text lines of the
+                             corresponding source file
+     --[no-]interactive    prompt the user for each non-matching diff hunk
+                             having multiple address choices, when action
+                             is `-A|--addresses-diff'; if non-interactive,
+                             the program exits with error the first time
+                             it finds non-matching diff hunks (the default
+                             behavior: non-interactive)
      --[no-]trace-parser   print out a trace of parsing the input file or
                              otherwise do not (default not)
      --dump-opts           print options and exit
@@ -864,6 +1174,8 @@ no-hash:      %s
 no-text:      %s
 no-adjust:    %s
 no-reorder:   %s
+no-hunk-out:  %s
+interactive:  %s
 trace-parser: %s
 verbose:      %s
 """,
@@ -876,6 +1188,8 @@ verbose:      %s
             self.no_text,
             self.no_adjust,
             self.no_reorder,
+            self.no_hunk_out,
+            self.interactive,
             self.trace_parser,
             self.verbose)
 
@@ -922,7 +1236,7 @@ verbose:      %s
         from getopt import gnu_getopt, GetoptError
         try:
             opts, args = gnu_getopt(args,
-                '?c:d:i:OPUv', (
+                '?Ac:d:i:OPUv', (
                 'context=',
                 'directory=',
                 'dry-run',
@@ -937,9 +1251,14 @@ verbose:      %s
                 'no-adjust-diff',
                 'reorder-hunks',
                 'no-reorder-hunks',
+                'hunk-output',
+                'no-hunk-output',
+                'interactive',
+                'no-interactive',
                 'parse-only',
                 'plain-diff',
                 'unified-diff',
+                'addresses-diff',
                 'trace-parser',
                 'no-trace-parser',
                 'verbose',
@@ -961,6 +1280,8 @@ verbose:      %s
                 self.action = Act.plain
             elif opt in ('-U', '--unified-diff'):
                 self.action = Act.unified
+            elif opt in ('-A', '--addresses-diff'):
+                self.action = Act.addresses
             elif opt == '--dry-run':
                 self.dry_run = True
             elif opt == '--no-dry-run':
@@ -981,6 +1302,14 @@ verbose:      %s
                 self.no_reorder = False
             elif opt == '--no-reorder-hunks':
                 self.no_reorder = True
+            elif opt == '--hunk-output':
+                self.no_hunk_out = False
+            elif opt == '--no-hunk-output':
+                self.no_hunk_out = True
+            elif opt == '--interactive':
+                self.interactive = True
+            elif opt == '--no-interactive':
+                self.interactive = False
             elif opt == '--trace-parser':
                 self.trace_parser = True
             elif opt == '--no-trace-parser':
@@ -1014,6 +1343,13 @@ verbose:      %s
             if self.input is not None:
                 self.input = os.path.realpath(self.input)
             os.chdir(self.directory)
+
+        if self.interactive and \
+            self.no_hunk_out and \
+            self.action == Act.addresses:
+            warn("`--interactive' has no effect on "
+                "action `-A|--addresses-diff' given "
+                "along with `--no-hunk-output'")
 
 def main():
     opt = Options()
