@@ -59,7 +59,8 @@ obtained can be used safely for to patch in the source tree all refactoring
 changes collected along the way.
 
 The Plain-Diff program consists of a single Python 2.6 script 'pdiff.py' --
-which is using only standard Python modules.
+which is using only standard Python modules. However, this script uses a few
+OS-dependent features that ties it to Unix (i.e. POSIX) platforms.
 
 
 2. The Plain-Diff File Format
