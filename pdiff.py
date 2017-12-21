@@ -1024,5 +1024,10 @@ if __name__ == '__main__':
     except IOError, (e, m):
         from errno import EPIPE
         if e != EPIPE: raise
+    except KeyboardInterrupt:
+        try:
+            sys.stdin.close()
+        except:
+            pass
 
 
