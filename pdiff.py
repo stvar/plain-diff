@@ -600,19 +600,19 @@ class Parser:
 
         return self.state
 
-    DIFF_TARGET = Rex('^([^\s:]+)\s*:\s*(\d+)$')
+    DIFF_ADDR = Rex('^([^\s:]+)\s*:\s*(\d+)$')
 
-    def parse_diff_target(self, target):
+    def parse_diff_address(self, address):
         assert self.state == self.DIFF_STATE
 
-        if not self.DIFF_TARGET.match(target):
+        if not self.DIFF_ADDR.match(address):
             self.invalid_line()
 
         d = PlainDiff(
             file = self.new_file(
-                    self.DIFF_TARGET[1]),
+                    self.DIFF_ADDR[1]),
             line = self.make_lineno(
-                    self.DIFF_TARGET[2]),
+                    self.DIFF_ADDR[2]),
             pos = self.lno
         )
         self.diffs.append(d)
@@ -626,7 +626,7 @@ class Parser:
         assert self.DIFF_RIGHT.match(line)
 
         if self.state == self.DIFF_STATE:
-            d = self.parse_diff_target(
+            d = self.parse_diff_address(
                 self.DIFF_RIGHT[1])
 
             self.text = d.source
@@ -658,7 +658,7 @@ class Parser:
             assert self.DIFF_LEFT.match(line)
 
         if self.state == self.DIFF_STATE:
-            d = self.parse_diff_target(
+            d = self.parse_diff_address(
                 self.DIFF_LEFT[1])
 
         elif self.state == self.SOURCE_STATE:

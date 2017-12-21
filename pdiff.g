@@ -67,13 +67,13 @@ diff_hunk    : insert_hunk
              | delete_hunk
              | replace_hunk
              ;
-insert_hunk  : "<<<" diff_target "\n" text_lines ">>>" ~ "\n"
+insert_hunk  : "<<<" diff_address "\n" text_lines ">>>" ~ "\n"
              ;
-delete_hunk  : ">>>" diff_target "\n" text_lines ">>>" ~ "\n"
+delete_hunk  : ">>>" diff_address "\n" text_lines ">>>" ~ "\n"
              ;
-replace_hunk : ">>>" diff_target "\n" text_lines "<<<" ~ "\n" text_lines ">>>" ~ "\n"
+replace_hunk : ">>>" diff_address "\n" text_lines "<<<" ~ "\n" text_lines ">>>" ~ "\n"
              ;
-diff_target  : ~ file_name ~ ":" ~ line_num ~
+diff_address : ~ file_name ~ ":" ~ line_num ~
              ;
 file_name    : [^ \f\t\v\r\n:]+
              ;
