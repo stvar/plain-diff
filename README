@@ -195,9 +195,9 @@ file -- that is 'test/json-type.pdiff'. This plain diff file is referring to
 Json-Type's [4] source tree -- it was produced out of a certain revision of
 Json-Type, during a code coverage analysis session.
 
-I'll use 'test/json-type.pdiff' below, in the current section and in the next
-one, for illustrating the functionalities of 'pdiff' program. The note attached
-to reference entry [4] presents the procedure of obtaining locally Json-Type's
+I'll use 'test/json-type.pdiff' below, in this subsection and in the next one,
+for illustrating the functionalities of 'pdiff' program. The note attached to
+reference entry [4] presents the procedure of obtaining locally Json-Type's
 source tree revision to which 'test/json-type.pdiff' is referring to.
 
 Let $JSON_TYPE_HOME be set such that to point to the local directory containing
@@ -275,10 +275,10 @@ a number of context lines specified by its user. This is achieved using the
 command line options `-U|--unified-diff', `-c|--context' and `--adjust-diff'.
 
 Important is to remark that all the command lines `pdiff -O' in the previous
-section that fail with error message, will fail exactly the same way if `-O'
+subsection that fail with error message, will fail the same exact way if `-O'
 is replaced with `-U'. This should be a sensible behavior: a prerequisite of
 generating an unified diff text out of a plain diff text is that the latter
-text must be valid in the sense outlined by the previous section.
+text must be valid in the sense outlined by the previous subsection.
 
 The command line `--adjust-diff' enforces 'pdiff' to always use source text
 lines read from source files to adjust unified context lines for the number
@@ -316,10 +316,10 @@ bottom -- of the unified diff hunk above. These four source lines had to be
 read from the source file 'lib/json-type.c' itself, since the originating
 plain diff hunk contains only three lines of source code.
 
-Extending the series of command line samples of previous section, the command
-lines below patch in the source tree of Json-Type according to the plain diff
-file 'test/json-type.pdiff'. The following command line must be issued within
-$PLAIN_DIFF_HOME directory:
+Extending the series of command line examples in the previous subsection, the
+command lines below patch the source tree of Json-Type according to the plain
+diff file 'test/json-type.pdiff'. The following command line must be issued
+within $PLAIN_DIFF_HOME directory:
 
   $ pdiff -d "$JSON_TYPE_HOME" -U test/json-type.pdiff|patch -d "$JSON_TYPE_HOME" -p0
   patching file lib/json-type.c
