@@ -71,7 +71,7 @@ class Hash:
     def constr(algo):
         import hashlib
         try:
-            return eval('hashlib.%s()' % algo.lower())
+            return getattr(hashlib, algo.lower())()
         except:
             error("failed creating hash object '%s'", algo)
 
