@@ -172,7 +172,7 @@ such argument is present in the invoking command line, take the file content
 from stdin. Note that the file name `-' has a special meaning: tells 'pdiff'
 to read its input from stdin.
 
-Plain-Diff has three main modes of operation, to each corresponding separate
+Plain-Diff has four main modes of operation, to each corresponding separate
 action options:
 
   ---------------------    ------------------------------------------------
