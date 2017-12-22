@@ -460,7 +460,8 @@ class KMP:
             return len(self.seq)
 
     def __init__(self, pattern, symbol = Symbol):
-        self.pattern = symbol(pattern)
+        assert isinstance(pattern, symbol)
+        self.pattern = pattern
         self.symbol = symbol
 
         r = self.symbol.SIZE
@@ -515,20 +516,21 @@ class KMP:
         return True
 
     def search(self, text):
-        t = self.symbol(text)
+        assert isinstance(text, self.symbol)
+
         m = len(self.pattern)
-        n = len(t)
+        n = len(text)
         r = []
 
         i = 0
         while i < n:
-            j = self.search_at(t, i)
+            j = self.search_at(text, i)
             assert j <= n
             assert j >= i
 
             if j >= n:
                 break
-            if self.same_syms(t, j):
+            if self.same_syms(text, j):
                 r.append(j + 1)
             i = j + m 
 
@@ -589,6 +591,13 @@ class Addresses(Gen):
         finally:
             t.close()
 
+    def symbol(self, file):
+        try:
+            return file.symbol
+        except AttributeError:
+            file.symbol = self.Symbol(file)
+            return file.symbol
+
     def gen(self, diff):
         assert diff.file.read_lines()
         self.current += 1
@@ -598,9 +607,9 @@ class Addresses(Gen):
             return
 
         m = KMP(
-            pattern = diff.source,
-            symbol = self.Symbol)
-        t = m.search(diff.file)
+            symbol = self.Symbol,
+            pattern = self.Symbol(diff.source))
+        t = m.search(self.symbol(diff.file))
         assert isinstance(t, list)
 
         if self.verbose:
