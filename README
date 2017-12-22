@@ -71,7 +71,7 @@ By design, the format of the files accepted as input by 'pdiff' is trivially
 simple. Plain diff files are text files that are line oriented, incorporating
 text from source files with almost zero-editing overhead.
 
-The adjective *almost* used above is to be understood literally: that is that
+The adverb *almost* used above should to be understood literally: that is that
 (of course, modulo my limited knowledge of these things) nearly every piece of
 modern-day written source text code of mainstream programming languages can be
 copied from files containing it and pasted *unchanged* into a plain diff file.
