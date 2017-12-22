@@ -479,9 +479,10 @@ class KMP:
             x = self.dfa[self.pattern(j)][x]
 
     def search_at(self, text, pos):
+        assert isinstance(text, self.symbol)
+
         m = len(self.pattern)
-        t = self.symbol(text)
-        n = len(t)
+        n = len(text)
 
         assert pos >= 0
         assert pos < n
@@ -490,7 +491,7 @@ class KMP:
         j = 0
         i = pos
         while i < n and j < m:
-            j = self.dfa[t(i)][j]
+            j = self.dfa[text(i)][j]
             i += 1
 
         if j == m:
@@ -514,19 +515,20 @@ class KMP:
         return True
 
     def search(self, text):
+        t = self.symbol(text)
         m = len(self.pattern)
-        n = len(text)
+        n = len(t)
         r = []
 
         i = 0
         while i < n:
-            j = self.search_at(text, i)
+            j = self.search_at(t, i)
             assert j <= n
             assert j >= i
 
             if j >= n:
                 break
-            if self.same_syms(text, j):
+            if self.same_syms(t, j):
                 r.append(j + 1)
             i = j + m 
 
