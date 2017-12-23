@@ -467,6 +467,7 @@ class KMP:
         r = self.symbol.SIZE
         m = len(self.pattern)
         assert m < 256
+        assert m > 0
 
         from numpy import zeros, uint8
         self.dfa = zeros(shape = (r, m), dtype = uint8)
@@ -532,7 +533,9 @@ class KMP:
                 break
             if self.same_syms(text, j):
                 r.append(j + 1)
-            i = j + m 
+                i = j + m
+            else:
+                i = j + 1
 
         return r
 
