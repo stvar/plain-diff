@@ -86,7 +86,7 @@ The strings "\\", "///", "###", "<<<" and ">>>" have to be escaped if and only
 if they occur at the beginning of source lines. The plain diff format requires
 these strings to be escaped since each has attached special syntactical meaning.
 
-The strings "///" mark the beginning of comment text lines. Lines starting with
+The string "///" mark the beginning of comment text lines. Lines starting with
 the string "###" contain hash digests specifications attached to source files.
 The strings "<<<" and ">>>" are diff hunks delimiters.
 
