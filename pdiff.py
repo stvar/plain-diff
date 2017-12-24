@@ -602,11 +602,12 @@ class Addresses(Gen):
             return file.symbol
 
     def gen(self, diff):
+        self.current += 1
+
         if not len(diff.source):
             return
 
         assert diff.file.read_lines()
-        self.current += 1
 
         if not self.no_hunk_out and \
             diff.check_text():
