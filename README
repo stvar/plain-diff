@@ -246,8 +246,7 @@ to 'pdiff' --, yet the input still be unacceptable for the program:
 
   $ pdiff -O test/json-type.pdiff -d "$JSON_TYPE_HOME" --no-hash-check
   pdiff: error: $PLAIN_DIFF_HOME/test/json-type.pdiff:29: \
-  source file 'lib/json-type.c': \
-  diff text not matching source text
+  lib/json-type.c:...: diff text not matching source text
 
 This error message tells that the 29th plain diff text line is not the same --
 as it should be -- with the corresponding source text line:
@@ -362,7 +361,7 @@ Now, 'pdiff' reacts as expected, rejecting the altered diff file:
 
   $ pdiff -d "$JSON_TYPE_HOME" -O test/json-type.pdiff
   pdiff: error: $PLAIN_DIFF_HOME/test/json-type.pdiff:29: \
-  source file 'lib/json-type.c': diff text not matching source text
+  lib/json-type.c:1401: diff text not matching source text
 
 Nice is that action option `-A|--addresses-diff' is able to handle the broken
 file, finding out and producing a fix for the hunk address edited above:
@@ -432,8 +431,7 @@ illustrate further the behavior of action option `-A|--addresses-diff':
 Now, applying 'pdiff' to 'foo.pdiff' gives an anticipated error message:
 
   $ pdiff -O foo.pdiff
-  pdiff: error: foo.pdiff:2: source file 'foo.txt': \
-  diff text not matching source text
+  pdiff: error: foo.pdiff:2: foo.txt:5: diff text not matching source text
 
 Action option `-A|--addresses-diff' has yet more of a useful behavior for the
 case of a diff hunk source text occurring multiple times in its target source

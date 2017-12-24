@@ -972,9 +972,9 @@ class Parser:
                     assert len(l) > 0
                     l = sorted(l, key = int)
                     self.error(d.pos + l[0],
-                        "source file '%s': diff text "
-                        "not matching source text",
-                        d.file)
+                        "%s:%d: diff text not"
+                        " matching source text",
+                        d.file, d.line + l[0] - 1)
 
         else:
             self.token_not_allowed("<<<")
