@@ -150,6 +150,8 @@ class File:
             if j >= m or lines[i] != self.lines[j]:
                 if result is not None:
                     result.add(i + 1)
+                else:
+                    return False
                 r += 1
             i += 1
             j += 1
