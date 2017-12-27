@@ -460,6 +460,7 @@ class KMP:
             return len(self.seq)
 
     def __init__(self, pattern, symbol = Symbol):
+        assert issubclass(symbol, self.Symbol)
         assert isinstance(pattern, symbol)
         self.pattern = pattern
         self.symbol = symbol
