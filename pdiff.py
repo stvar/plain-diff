@@ -1372,6 +1372,9 @@ verbose:      %s
                 "action `-A|--addresses-diff' given "
                 "along with `--no-hunk-output'")
 
+        from signal import signal, SIGPIPE, SIG_DFL
+        signal(SIGPIPE, SIG_DFL)
+
 def main():
     opt = Options()
     opt.action(opt)
@@ -1379,9 +1382,6 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except IOError, (e, m):
-        from errno import EPIPE
-        if e != EPIPE: raise
     except KeyboardInterrupt:
         try:
             sys.stdin.close()
