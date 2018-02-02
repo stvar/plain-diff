@@ -1379,13 +1379,17 @@ def main():
     opt = Options()
     opt.action(opt)
 
+def call(func, catch = Exception):
+    try:
+        func()
+    except catch:
+        pass
+
 if __name__ == '__main__':
     try:
-        main()
-    except KeyboardInterrupt:
-        try:
-            sys.stdin.close()
-        except:
-            pass
+        call(main, KeyboardInterrupt)
+    finally:
+        call(sys.stdin.close)
+        call(sys.stdout.close)
 
 
