@@ -1225,12 +1225,12 @@ verbose:      %s
 
         def parse_int(opt, arg):
             try:
-                arg = int(arg)
+                r = int(arg)
             except:
                 invalid_arg(opt, arg)
-            if arg <= 0:
+            if r <= 0:
                 invalid_arg(opt, arg)
-            return arg
+            return r
 
         def parse_file_name(opt, arg):
             if arg != '-' and not os.access(arg, os.F_OK):
