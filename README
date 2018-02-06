@@ -318,8 +318,8 @@ the end of section 2):
                return JSON_TYPE_RULER_ERROR_POS(
                    v->pos, invalid_type_obj_type_not_obj_arr_list_dict);
 
-Note that 'pdiff' added four context lines -- two at the top and two at the
-bottom -- of the unified diff hunk above. These four source lines had to be
+Note that 'pdiff' added four context lines, two at the top and two at the
+bottom of the unified diff hunk above. These four source lines had to be
 read from the source file 'lib/json-type.c' itself, since the originating
 plain diff hunk contains only three lines of source code.
 
@@ -346,10 +346,9 @@ with hunk source lines within the given plain diff file, `-A|--addresses-diff'
 may come to help fixing the offending diff file -- for to bring it in sync with
 source file content.
 
-More precisely, when a source files changed such that its line addresses within
+More precisely, when source files change such that their line addresses within
 the plain diff became invalid, `-A|--addresses-diff' can be employed to produce
-a plain diff text which fixes up conveniently the invalidated diff addresses
-within the initiating plain diff file.
+a plain diff text which fixes up conveniently the invalidated diff addresses.
 
 To exemplify the situation just described, let's make the valid plain diff file
 'test/json-type.pdiff' be invalid by changing one of its hunk addresses (also
