@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright (C) 2017  Stefan Vargyas
+# Copyright (C) 2017, 2018  Stefan Vargyas
 # 
 # This file is part of Plain-Diff.
 # 
@@ -26,7 +26,7 @@ program = 'pdiff'
 verdate = '0.2 2017-12-19 13:35' # $ date +'%F %R'
 
 license = """\
-Copyright (C) 2017  Stefan Vargyas.
+Copyright (C) 2017, 2018  Stefan Vargyas.
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law."""
