@@ -268,18 +268,22 @@ class PlainDiff:
 
     @staticmethod
     def cmp_file_line(a, b):
-        if a.file == b.file:
+        s = a.file.name
+        t = b.file.name
+        if s == t:
             return a.line - b.line
-        if a.file < b.file:
+        if s < t:
             return -1
         else:
             return 1
 
     @staticmethod
     def cmp_file(a, b):
-        if a.file == b.file:
+        s = a.file.name
+        t = b.file.name
+        if s == t:
             return 0
-        if a.file < b.file:
+        if s < t:
             return -1
         else:
             return 1
