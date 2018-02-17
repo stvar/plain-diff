@@ -24,7 +24,7 @@
 # in any plain-diff text are processed the way they were given
 # and are not removed during text tokenization.
 #
-# As a result of this rule, the terminal symbols '///', '###'
+# As a result of this rule, the terminal symbols '///', '###',
 # '>>>' and '<<<' are always placed right at the beginning of
 # input text lines.
 #
