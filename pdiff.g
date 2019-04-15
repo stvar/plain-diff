@@ -1,4 +1,4 @@
-# Copyright (C) 2017, 2018  Stefan Vargyas
+# Copyright (C) 2017, 2018, 2019  Stefan Vargyas
 # 
 # This file is part of Plain-Diff.
 # 
