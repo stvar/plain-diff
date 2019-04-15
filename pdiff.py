@@ -23,7 +23,7 @@ from types import NoneType
 from itertools import imap, repeat
 
 program = 'pdiff'
-verdate = '0.2 2017-12-19 13:35' # $ date +'%F %R'
+verdate = '0.3 2019-04-15 11:01' # $ date +'%F %R'
 
 license = """\
 Copyright (C) 2017, 2018, 2019  Stefan Vargyas.
