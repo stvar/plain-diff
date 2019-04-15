@@ -86,7 +86,7 @@ The strings "\\", "///", "###", "<<<" and ">>>" have to be escaped if and only
 if they occur at the beginning of source lines. The plain diff format requires
 these strings to be escaped since each has attached special syntactical meaning.
 
-The string "///" mark the beginning of comment text lines. Lines starting with
+The string "///" marks the beginning of comment text lines. Lines starting with
 the string "###" contain hash digests specifications attached to source files.
 The strings "<<<" and ">>>" are diff hunks delimiters.
 
@@ -287,7 +287,7 @@ is replaced with `-U'. This should be a sensible behavior: a prerequisite of
 generating an unified diff text out of a plain diff text is that the latter
 text must be valid in the sense outlined by the previous subsection.
 
-The command line `--adjust-diff' enforces 'pdiff' to always use source text
+Given option `--adjust-diff', 'pdiff' is enforced to always use source text
 lines read from source files to adjust unified context lines for the number
 of these to be up to the number specified by `-c|--context'. The adjustment
 may not always be possible at the extend specified by `-c|--context' when
