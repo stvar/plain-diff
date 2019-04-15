@@ -950,6 +950,16 @@ class Parser:
                     "diff hunk has both source "
                     "and target texts empty")
 
+            if not self.no_text:
+                l = set()
+                if not d.check_text(l):
+                    assert len(l) > 0
+                    l = sorted(l, key = int)
+                    self.error(d.pos + l[0],
+                        "%s:%d: diff text not"
+                        " matching source text",
+                        d.file, d.line + l[0] - 1)
+
             self.text = None
             return self.DIFF_STATE
 
@@ -971,17 +981,7 @@ class Parser:
         elif self.state == self.SOURCE_STATE:
             if len(self.DIFF_LEFT[2]):
                 self.non_wsp_text_after("<<<")
-
             d = self.diffs[-1]
-            if not self.no_text:
-                l = set()
-                if not d.check_text(l):
-                    assert len(l) > 0
-                    l = sorted(l, key = int)
-                    self.error(d.pos + l[0],
-                        "%s:%d: diff text not"
-                        " matching source text",
-                        d.file, d.line + l[0] - 1)
 
         else:
             self.token_not_allowed("<<<")
